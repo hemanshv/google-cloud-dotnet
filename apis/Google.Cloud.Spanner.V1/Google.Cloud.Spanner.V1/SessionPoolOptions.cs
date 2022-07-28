@@ -1,4 +1,4 @@
-﻿// Copyright 2017 Google Inc. All Rights Reserved.
+// Copyright 2017 Google Inc. All Rights Reserved.
 // 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -39,12 +39,21 @@ namespace Google.Cloud.Spanner.V1
         private int _maximumConcurrentSessionCreates = 50;
         private RetrySettings.IJitter _sessionRefreshJitter = new ProportionalRandomJitter(0.1);
         private RetrySettings.IJitter _sessionEvictionJitter = new ProportionalRandomJitter(0.1);
+        private string _databaseRole;
 
         /// <summary>
         /// Constructs a new <see cref="SessionPoolOptions"/> with default values.
         /// </summary>
         public SessionPoolOptions()
         {
+        }
+        /// <summary>
+        /// Database role to be used in session
+        /// </summary>
+        public string DatabaseRole
+        {
+            get => _databaseRole;
+            set => _databaseRole = value;
         }
 
         /// <summary>

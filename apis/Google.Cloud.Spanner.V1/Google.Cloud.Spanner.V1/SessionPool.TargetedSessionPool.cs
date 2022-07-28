@@ -1,4 +1,4 @@
-﻿// Copyright 2018 Google LLC
+// Copyright 2018 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -114,7 +114,8 @@ namespace Google.Cloud.Spanner.V1
                     DatabaseAsDatabaseName = databaseName,
                     SessionTemplate = new Session
                     {
-                        Labels = { parent.Options.SessionLabels }
+                        Labels = { parent.Options.SessionLabels },
+                        CreatorRole = Options.DatabaseRole
                     }
                 };
 
@@ -758,7 +759,7 @@ namespace Google.Cloud.Spanner.V1
 
                         foreach(var sessionProto in batchSessionCreateResponse.Session)
                         {
-                            pooledSessions.Add(PooledSession.FromSessionName(this, sessionProto.SessionName));
+                            pooledSessions.Add(PooledSession.FromSessionName(this, sessionProto.SessionName, Options.DatabaseRole));
                         }
                         return pooledSessions;
                     }

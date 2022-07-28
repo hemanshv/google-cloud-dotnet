@@ -1,4 +1,4 @@
-﻿// Copyright 2017 Google Inc. All Rights Reserved.
+// Copyright 2017 Google Inc. All Rights Reserved.
 // 
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -53,9 +53,10 @@ namespace Google.Cloud.Spanner.Data
         private const string EmulatorDetectionKeyword = "EmulatorDetection";
         private const string ClrToSpannerTypeDefaultMappingsKeyword = "ClrToSpannerTypeDefaultMappings";
         private const string SpannerToClrTypeDefaultMappingsKeyword = "SpannerToClrTypeDefaultMappings";
-        
+
         private InstanceName _instanceName;
         private DatabaseName _databaseName;
+        private string _databaseRole;
 
         /// <summary>
         /// Optional path to a JSON Credential file. If a Credential is not supplied, Cloud Spanner
@@ -65,6 +66,19 @@ namespace Google.Cloud.Spanner.Data
         {
             get => GetValueOrDefault(CredentialFileKeyword);
             set => this[CredentialFileKeyword] = value;
+        }
+
+        /// <summary>
+        /// Optional database role used while performing FGAC queries
+        /// </summary>
+        public string DatabaseRole
+        {
+            get => _databaseRole;
+            set 
+            {
+                _databaseRole = value;
+                _sessionPoolManager.WithDatabaseRole(_databaseRole);
+            }
         }
 
         /// <summary>

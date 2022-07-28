@@ -1,4 +1,4 @@
-﻿// Copyright 2018 Google LLC
+// Copyright 2018 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -192,7 +192,7 @@ namespace Google.Cloud.Spanner.V1
         {
             GaxPreconditions.CheckNotNull(sessionName, nameof(sessionName));
             GaxPreconditions.CheckNotNull(transactionId, nameof(transactionId));
-            return PooledSession.FromSessionName(_detachedSessionPool, sessionName).WithTransaction(transactionId, transactionMode, readTimestamp);
+            return PooledSession.FromSessionName(_detachedSessionPool, sessionName, Options.DatabaseRole).WithTransaction(transactionId, transactionMode, readTimestamp);
         }
 
         /// <summary>
