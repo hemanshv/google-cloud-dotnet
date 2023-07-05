@@ -14,53 +14,76 @@
 
 using Google.Cloud.Bigtable.Common.V2;
 using Google.Cloud.Bigtable.V2;
+using Google.Protobuf;
 using Grpc.Auth;
 using Grpc.Core;
 using Grpc.Net.Client;
 using System.Diagnostics;
-using System.Globalization;
 
-public class Program
+if (args.Length < 3)
 {
-    private const long TimeSpanTicksPerMicrosecond = 10;
-    public static async Task Main(string[] args)
-    {
-        //BigtableServiceApiClient.ServiceMetadata
-        string endpoint = "dns:///bigtable.googleapis.com:443";
-        string ProjectId = "docssamples";
-        string InstanceId = "bigtabletest";
-        BigtableByteString rowKey = "invalid-rowId";
-
-        var channelCredentials = await GoogleGrpcCredentials.GetApplicationDefaultAsync();
-        var channel = GrpcChannel.ForAddress(endpoint, new GrpcChannelOptions { Credentials = channelCredentials});
-
-        // Create a CallInvoker instance.
-        var invoker = channel.CreateCallInvoker();
-        Bigtable.BigtableClient grpcClient = new Bigtable.BigtableClient(invoker);
-
-        TableName TableName = new TableName(ProjectId, InstanceId, "testtable");
-        ReadRowsRequest readRowsRequest = new ReadRowsRequest
-        {
-            TableNameAsTableName = TableName,
-            Rows = new RowSet { RowKeys = { rowKey.Value } }
-        };
-        int requestid = 0;
-        while (true)
-        {
-            var stopwatch = Stopwatch.StartNew();
-
-            var response = grpcClient.ReadRows(readRowsRequest);
-            while (await response.ResponseStream.MoveNext())
-            {
-                Console.WriteLine("inside loop");
-                Console.WriteLine(response.ResponseStream.Current);
-            }
-
-            var lapsedTimeUs = (stopwatch.Elapsed.Ticks / TimeSpanTicksPerMicrosecond).ToString(CultureInfo.InvariantCulture);
-            Console.WriteLine($"latency in request : {requestid} is: {lapsedTimeUs}");
-            requestid++;
-            await Task.Delay(1000 * 10);
-        }
-
-    }
+    Console.WriteLine("Command-line arguments: <project-id> <instance-id> <table-id> [x-goog-request-params value]");
+    return;
 }
+
+Metadata metadata = new Metadata();
+if (args.Length >= 4)
+{
+    metadata.Add("x-goog-request-params", args[3]);
+}
+var callOptions = new CallOptions(metadata);
+
+TimeSpan delay = TimeSpan.FromSeconds(10);
+string projectId = args[0];
+string instanceId = args[1];
+string tableId = args[2];
+string endpoint = $"https://{BigtableServiceApiClient.DefaultEndpoint}";
+
+var channelCredentials = await GoogleGrpcCredentials.GetApplicationDefaultAsync();
+var channel = GrpcChannel.ForAddress(endpoint, new GrpcChannelOptions { Credentials = channelCredentials });
+
+var invoker = channel.CreateCallInvoker();
+Bigtable.BigtableClient grpcClient = new Bigtable.BigtableClient(invoker);
+grpcClient.PingAndWarm(new PingAndWarmRequest { InstanceName = new InstanceName(projectId, instanceId)});
+var channelStartTime = DateTime.UtcNow;
+
+TableName TableName = new TableName(projectId, instanceId, tableId);
+ReadRowsRequest readRowsRequest = new ReadRowsRequest
+{
+    TableNameAsTableName = TableName,
+    Rows = new RowSet { RowKeys = { ByteString.CopyFromUtf8("invalid-rowId") } }
+};
+
+var stopwatch = Stopwatch.StartNew();
+for (int requestId = 0; requestId < 1_000_000; requestId++)
+{
+    var timeTillNow = DateTime.UtcNow - channelStartTime;
+    if (timeTillNow.TotalMinutes > 45)
+    {
+        channelStartTime = DateTime.UtcNow;
+        SwapClient();
+    }
+
+    stopwatch.Restart();
+    using var response = grpcClient.ReadRows(readRowsRequest, metadata);
+    // Tight loop to read all values.
+    while (await response.ResponseStream.MoveNext())
+    {
+    }
+    var latencyTimerTicks = stopwatch.ElapsedTicks;
+    var latencyMillis = latencyTimerTicks * 1_000 / Stopwatch.Frequency;
+    Log($"Request: {requestId}; Latency millis: {latencyMillis}");
+    await Task.Delay(delay);
+}
+
+async void SwapClient()
+{
+    var newChannel = GrpcChannel.ForAddress(endpoint, new GrpcChannelOptions { Credentials = channelCredentials });
+    var newInvoker = channel.CreateCallInvoker();
+    var newClient = new Bigtable.BigtableClient(newInvoker);
+    await newClient.PingAndWarmAsync(new PingAndWarmRequest { InstanceName = new InstanceName(projectId, instanceId) });
+    grpcClient = newClient;
+}
+
+void Log(string message) =>
+    Console.WriteLine($"{DateTime.UtcNow:HH:mm:ss.fff}: {message}");
